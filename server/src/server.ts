@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -325,10 +326,15 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
 
-app.listen(config.port, () => {
-  console.log(`API listening on http://localhost:${config.port}`);
-  console.log(`Integration status: ${JSON.stringify(integrationStatus())}`);
-  if (!supabaseConfigured) console.warn('Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in .env to enable database-backed features.');
-  if (!secretSupabase) console.warn('Contact/testimonial/analytics submissions require SUPABASE_SECRET_KEY; endpoints remain disabled until configured.');
-  if (!mailConfigured) console.warn('Configure Gmail SMTP variables to send contact notifications; submissions can still be saved when server submissions are configured.');
-});
+export default app;
+
+const entryPoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : '';
+if (entryPoint === import.meta.url) {
+  app.listen(config.port, () => {
+    console.log(`API listening on http://localhost:${config.port}`);
+    console.log(`Integration status: ${JSON.stringify(integrationStatus())}`);
+    if (!supabaseConfigured) console.warn('Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in .env to enable database-backed features.');
+    if (!secretSupabase) console.warn('Contact/testimonial/analytics submissions require SUPABASE_SECRET_KEY; endpoints remain disabled until configured.');
+    if (!mailConfigured) console.warn('Configure Gmail SMTP variables to send contact notifications; submissions can still be saved when server submissions are configured.');
+  });
+}
