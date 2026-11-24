@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cors from 'cors';
-import { default as helmet } from 'helmet';
+import * as helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { analyticsConfigured, config, integrationStatus, mailConfigured, supabaseConfigured } from './config.js';
@@ -17,7 +17,7 @@ import {
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(helmet.default());
 app.use(cors({ origin: config.origins, credentials: false, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '1mb' }));
 
