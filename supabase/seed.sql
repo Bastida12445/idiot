@@ -1,0 +1,3 @@
+-- No demo people, clients, projects, visits, messages, credentials, or testimonials are seeded.
+-- The migration inserts an editable default settings row. Create real administrator accounts
+-- interactively with `npm run create-admin`; no invitation or registration email is sent.
