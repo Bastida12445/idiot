@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import { default as helmet } from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { analyticsConfigured, config, integrationStatus, mailConfigured, supabaseConfigured } from './config.js';
