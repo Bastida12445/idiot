@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cors from 'cors';
-import * as helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { analyticsConfigured, config, integrationStatus, mailConfigured, supabaseConfigured } from './config.js';
@@ -14,10 +14,11 @@ import {
   teamSchema, testimonialSchema, testimonialUpdateSchema,
 } from './validators.js';
 
+const helmet = createRequire(import.meta.url)('helmet') as () => express.RequestHandler;
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use(helmet.default());
+app.use(helmet());
 app.use(cors({ origin: config.origins, credentials: false, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '1mb' }));
 
