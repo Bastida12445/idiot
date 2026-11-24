@@ -86,9 +86,30 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workspaceSearch, setWorkspaceSearch] = useState("");
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+  useEffect(() => {
+    function focusWorkspaceSearch(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        document.querySelector<HTMLInputElement>(".admin-workspace-search input")?.focus();
+      }
+    }
+    window.addEventListener("keydown", focusWorkspaceSearch);
+    return () => window.removeEventListener("keydown", focusWorkspaceSearch);
+  }, []);
+  function submitWorkspaceSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = workspaceSearch.trim().toLowerCase();
+    if (!query) return;
+    const match = links.find((item) =>
+      item.label.toLowerCase().includes(query) ||
+      item.to.toLowerCase().includes(query),
+    );
+    if (match) navigate(match.to);
+  }
   async function logout() {
     await signOut();
     navigate("/login");
@@ -150,14 +171,16 @@ export function AdminLayout() {
           >
             <Menu size={19} />
           </button>
-          <span className="admin-breadcrumb">
-            Workspace <ChevronRight size={14} />
-            <strong>
-              {links.find((item) => item.to === location.pathname)?.label ||
-                location.pathname.split("/").pop()?.replace("-", " ") ||
-                "Overview"}
-            </strong>
-          </span>
+          <form className="admin-workspace-search" onSubmit={submitWorkspaceSearch}>
+            <Search size={16} />
+            <input
+              value={workspaceSearch}
+              onChange={(event) => setWorkspaceSearch(event.target.value)}
+              placeholder="Search workspace…"
+              aria-label="Search workspace"
+            />
+            <kbd>Ctrl K</kbd>
+          </form>
           <div className="topbar-right">
             <span className="secure-label">
               <span className="live-dot" /> SECURE SESSION
@@ -230,6 +253,7 @@ function useAdminData<T>(path: string) {
 }
 
 export function OverviewPage() {
+  const [range, setRange] = useState("30d");
   const {
     data: stats,
     loading,
@@ -239,71 +263,45 @@ export function OverviewPage() {
   const { data: analytics, loading: chartLoading } = useAdminData<{
     series: { label: string; views: number; visitors: number }[];
     pages: { path: string; views: number }[];
-  }>("/analytics/visitors?range=7d");
+  }>(`/analytics/visitors?range=${range}`);
   const { data: messages } = useAdminData<Row[]>("/messages?unread=true");
   const counts = [
-    {
-      label: "Total page views",
-      value: stats?.totalVisits,
-      icon: Activity,
-      note: "All recorded public views",
-    },
-    {
-      label: "Unique browsers",
-      value: stats?.uniqueVisitors,
-      icon: Users,
-      note: "Estimated, not individual people",
-    },
-    {
-      label: "Today’s visits",
-      value: stats?.todayVisits,
-      icon: ArrowUpRight,
-      note: "Asia/Manila calendar day",
-    },
-    {
-      label: "This month",
-      value: stats?.monthVisits,
-      icon: Activity,
-      note: "Asia/Manila calendar month",
-    },
-    {
-      label: "Projects",
-      value: stats?.totalProjects,
-      icon: FolderKanban,
-      note: "All project records",
-    },
-    {
-      label: "Published services",
-      value: stats?.publishedServices,
-      icon: BriefcaseBusiness,
-      note: "Visible to visitors",
-    },
-    {
-      label: "Approved testimonials",
-      value: stats?.approvedTestimonials,
-      icon: Star,
-      note: "Approved for publication",
-    },
-    {
-      label: "Unread messages",
-      value: stats?.unreadMessages,
-      icon: Mail,
-      note: "Awaiting your attention",
-    },
+    { label: "Total website visits", value: stats?.totalVisits, icon: Activity, note: "All recorded public views", tone: "violet" },
+    { label: "Unique visitors", value: stats?.uniqueVisitors, icon: Users, note: "Estimated distinct browsers", tone: "blue" },
+    { label: "Today’s visits", value: stats?.todayVisits, icon: ArrowUpRight, note: "Asia/Manila today", tone: "mint" },
+    { label: "Total projects", value: stats?.totalProjects, icon: FolderKanban, note: "Published and draft records", tone: "amber" },
   ];
+  const now = new Date();
+  const dateLabel = new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
   return (
-    <div className="admin-page">
-      <div className="admin-page-heading">
-        <div>
-          <Eyebrow>MONDAY, YOUR STUDIO AT A GLANCE</Eyebrow>
-          <h1>
-            Overview<span className="heading-period">.</span>
-          </h1>
-          <p>Real-time signals from the work you put into the world.</p>
+    <div className="admin-page overview-page">
+      <div className="overview-hero">
+        <div className="overview-planet" aria-hidden="true">
+          <span className="overview-planet-core" />
+          <span className="overview-planet-ring" />
         </div>
-        <button className="outline-button" onClick={refresh}>
-          <RefreshCw size={15} /> Refresh data
-        </button>
+        <div className="overview-heading">
+          <Eyebrow>{dateLabel.toUpperCase()}</Eyebrow>
+          <h1>Welcome back, <span>Admin User!</span> <b aria-hidden="true">✦</b></h1>
+          <p>Here’s what is happening with your portfolio today.</p>
+        </div>
+        <div className="overview-controls">
+          <label className="overview-range">
+            <select value={range} onChange={(event) => setRange(event.target.value)} aria-label="Analytics range">
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="12m">Last 12 months</option>
+            </select>
+          </label>
+          <button className="outline-button overview-refresh" onClick={refresh} title="Refresh data">
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
       {error ? (
         <ErrorState message={error} retry={refresh} />
@@ -311,9 +309,9 @@ export function OverviewPage() {
         <Loading label="Loading actual Supabase records" />
       ) : (
         <div className="metric-grid">
-          {counts.map((item, index) => (
+          {counts.map((item) => (
             <div
-              className={`metric-card metric-card-${index}`}
+              className={`metric-card metric-card-${item.tone}`}
               key={item.label}
             >
               <div className="metric-top">
@@ -322,6 +320,7 @@ export function OverviewPage() {
               </div>
               <strong>{item.value?.toLocaleString() ?? "—"}</strong>
               <small>{item.note}</small>
+              <span className="metric-spark" aria-hidden="true" />
             </div>
           ))}
         </div>
@@ -330,7 +329,7 @@ export function OverviewPage() {
         <section className="admin-panel chart-panel">
           <div className="panel-heading">
             <div>
-              <Eyebrow>LAST 7 DAYS</Eyebrow>
+              <Eyebrow>WEBSITE ANALYTICS</Eyebrow>
               <h2>Public traffic</h2>
             </div>
             <span className="live-pill">
@@ -403,76 +402,58 @@ export function OverviewPage() {
         </section>
       </div>
       <div className="dashboard-grid dashboard-bottom">
-        <section className="admin-panel">
+        <section className="admin-panel recent-activity-panel">
           <div className="panel-heading">
             <div>
-              <Eyebrow>YOUR NEXT STEP</Eyebrow>
-              <h2>Studio checklist</h2>
-            </div>
-          </div>
-          <div className="checklist">
-            <Link to="/admin/projects">
-              <span className="checklist-icon">
-                <FolderKanban size={16} />
-              </span>
-              <div>
-                <strong>Share a project</strong>
-                <small>Show visitors the work you’re proud of.</small>
-              </div>
-              <ArrowUpRight size={15} />
-            </Link>
-            <Link to="/admin/team">
-              <span className="checklist-icon">
-                <Users size={16} />
-              </span>
-              <div>
-                <strong>Introduce the team</strong>
-                <small>Complete your three profile pages.</small>
-              </div>
-              <ArrowUpRight size={15} />
-            </Link>
-            <Link to="/admin/settings">
-              <span className="checklist-icon">
-                <Settings size={16} />
-              </span>
-              <div>
-                <strong>Personalize your studio</strong>
-                <small>Set your name, story, and contact details.</small>
-              </div>
-              <ArrowUpRight size={15} />
-            </Link>
-          </div>
-        </section>
-        <section className="admin-panel">
-          <div className="panel-heading">
-            <div>
-              <Eyebrow>INBOX</Eyebrow>
-              <h2>Unread messages</h2>
+              <Eyebrow>RECENT ACTIVITY</Eyebrow>
+              <h2>Latest inquiries</h2>
             </div>
             <Link to="/admin/messages" className="arrow-link">
-              Open inbox <ArrowUpRight size={13} />
+              View all <ArrowUpRight size={13} />
             </Link>
           </div>
           {messages?.length ? (
             messages.slice(0, 4).map((message) => (
               <Link
-                className="inbox-preview"
+                className="activity-preview"
                 to="/admin/messages"
                 key={String(message.id)}
               >
-                <span className="message-dot" />
-                <span>
+                <span className="activity-preview-icon"><Mail size={13} /></span>
+                <div>
                   <strong>{String(message.full_name)}</strong>
                   <small>{String(message.subject)}</small>
-                </span>
+                </div>
                 <time>{formatDate(message.created_at)}</time>
               </Link>
             ))
           ) : (
-            <EmptyState title="You’re all caught up">
-              New client inquiries will land here.
+            <EmptyState title="No recent activity">
+              New client inquiries will appear here.
             </EmptyState>
           )}
+        </section>
+        <section className="admin-panel quick-actions-panel">
+          <div className="panel-heading">
+            <div>
+              <Eyebrow>QUICK ACTIONS</Eyebrow>
+              <h2>Workspace tools</h2>
+            </div>
+          </div>
+          <div className="quick-actions">
+            <Link to="/admin/projects"><span><FolderKanban size={17} /></span><strong>New project</strong></Link>
+            <Link to="/admin/services"><span><BriefcaseBusiness size={17} /></span><strong>Manage services</strong></Link>
+            <Link to="/admin/team"><span><Users size={17} /></span><strong>Update team</strong></Link>
+            <Link to="/admin/messages"><span><Mail size={17} /></span><strong>View messages</strong></Link>
+          </div>
+          <div className="system-status">
+            <div className="system-orbit" aria-hidden="true"><span /></div>
+            <div>
+              <Eyebrow>SYSTEM STATUS</Eyebrow>
+              <strong>All systems operational <i /></strong>
+              <small>Supabase data connection is active</small>
+            </div>
+          </div>
         </section>
       </div>
       <div className="privacy-disclaimer">
@@ -943,15 +924,13 @@ export function ContentManager({
                           >
                             <Pencil size={15} />
                           </button>
-                          {type !== "team" && (
-                            <button
-                              className="delete-action"
-                              onClick={() => void remove(row)}
-                              title="Delete"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
+                          <button
+                            className="delete-action"
+                            onClick={() => void remove(row)}
+                            title="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </td>
                     </tr>
